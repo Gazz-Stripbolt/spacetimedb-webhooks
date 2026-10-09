@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spacetime Webhooks</title>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --panel2: #efede8; --fg: #1d1c1a; --muted: #6b6862; --line: #dedad2;
+  --accent: #e8730c; --accent-fg: #fff; --ok: #1f8a4c; --warn: #b45309; --bad: #c0392b; --info: #2f6fb3;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121316; --panel: #1b1d21; --panel2: #23262b; --fg: #ecebe8; --muted: #9a978f; --line: #2d3036;
+    --accent: #ff8a2a; --accent-fg: #1b1206; --ok: #3ddc84; --warn: #f5a524; --bad: #ff6b5c; --info: #6aa8ff;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--line); background: var(--panel); }
+header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+header h1 svg { vertical-align: -3px; color: var(--accent); }
+#db { color: var(--muted); font-family: var(--mono); font-size: 12.5px; }
+#live { margin-left: auto; font-size: 12.5px; color: var(--ok); display: flex; align-items: center; gap: 6px; }
+#live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+#live.off { color: var(--bad); }
+main { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 18px 22px; max-width: 1400px; margin: 0 auto; align-items: start; }
+.col { display: grid; gap: 18px; min-width: 0; }
+[hidden] { display: none !important; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+section.wide { grid-column: 1 / -1; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+h2 .arrow { font-size: 15px; color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); }
+.chip b { font-weight: 600; }
+.chip .k { color: var(--muted); }
+.chip.off { opacity: .55; border-style: dashed; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.mono, .mono { font-family: var(--mono); font-size: 12px; }
+td.trunc { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scroll { max-height: 520px; overflow: auto; }
+.pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 600; background: var(--panel2); }
+.pill.ok { color: var(--ok); } .pill.bad { color: var(--bad); } .pill.warn { color: var(--warn); } .pill.info { color: var(--info); }
+.muted { color: var(--muted); }
+.empty { color: var(--muted); padding: 10px 0; font-size: 13px; }
+form { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+form .full { grid-column: 1 / -1; }
+input, textarea { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; width: 100%; }
+textarea { font-family: var(--mono); font-size: 12px; min-height: 54px; resize: vertical; }
+label { font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
+button { font: inherit; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-weight: 600; }
+button.ghost { background: transparent; color: var(--fg); border-color: var(--line); font-weight: 500; }
+.row { display: flex; gap: 8px; align-items: center; }
+#toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: .15s; pointer-events: none; font-size: 13px; }
+#toast.show { opacity: 1; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 14px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/></svg> Spacetime Webhooks</h1>
+  <span id="db"></span>
+  <span id="live">live</span>
+</header>
+<main>
+  <div class="col">
+  <section>
+    <h2><span class="arrow">↓</span> Inbound sources</h2>
+    <div class="chips" id="sources"></div>
+    <div class="muted" style="font-size:12.5px">POST to <span class="mono" id="inbound-url"></span></div>
+  </section>
+  <section>
+    <h2>Received events</h2>
+    <div class="scroll" id="events"></div>
+  </section>
+  </div>
+  <div class="col">
+  <section>
+    <h2><span class="arrow">↑</span> Outbound endpoints</h2>
+    <div id="endpoints"></div>
+    <form id="send-form">
+      <label>Event type<input name="event_type" value="order.created"></label>
+      <label>Roll back after queueing?<span class="row" style="height:34px"><input type="checkbox" name="fail" style="width:auto"> <span class="muted">yes (nothing is sent)</span></span></label>
+      <label class="full">Data (JSON)<textarea name="data">{"order": 42, "total": "19.99"}</textarea></label>
+      <div class="full row"><button type="submit">Send event</button><button type="button" class="ghost" id="show-add">Add endpoint…</button></div>
+    </form>
+    <form id="add-form" hidden>
+      <label>Name<input name="name" placeholder="my-receiver" required></label>
+      <label>Event types (comma-separated, empty = all)<input name="event_types" placeholder="order.*"></label>
+      <label class="full">URL<input name="url" placeholder="https://example.com/webhooks" required></label>
+      <label class="full">Secret (whsec_…)<input name="secret" required></label>
+      <div class="full"><button type="submit">Save endpoint</button></div>
+    </form>
+  </section>
+  <section>
+    <h2>Activity</h2>
+    <div class="scroll" id="log"></div>
+  </section>
+  </div>
+</main>
+<div id="toast"></div>
+<script>
+const base = location.pathname.replace(/\/$/, '');
+const db = (location.pathname.match(/\/v1\/database\/([^/]+)/) || [])[1] || '';
+document.getElementById('db').textContent = db;
+document.getElementById('inbound-url').textContent = `${location.origin}${base}/webhooks/<source>`;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const time = (us) => new Date(us / 1000).toLocaleTimeString([], { hour12: false });
+const OUTCOME = { applied: 'ok', delivered: 'ok', challenge: 'info', ping: 'info', queued: 'info', duplicate: 'warn', retry: 'warn', rejected: 'bad', error: 'bad', dead: 'bad', disabled: 'bad' };
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2200); }
+
+async function refresh() {
+  let s;
+  try {
+    s = await (await fetch(base + '/api/state', { cache: 'no-store' })).json();
+    $('live').classList.remove('off'); $('live').textContent = 'live';
+  } catch { $('live').classList.add('off'); $('live').textContent = 'offline'; return; }
+  const configured = new Map(s.sources.map((x) => [x.name, x.kind]));
+  $('sources').innerHTML = s.routes.map((r) => configured.has(r)
+    ? `<span class="chip"><b>${esc(r)}</b> <span class="k">${esc(configured.get(r))}</span></span>`
+    : `<span class="chip off" title="route registered, no configuration"><b>${esc(r)}</b> <span class="k">not configured</span></span>`).join('');
+  $('endpoints').innerHTML = s.endpoints.length ? `<table><tr><th>Name</th><th>URL</th><th>Wants</th><th>Status</th></tr>${s.endpoints.map((e) => `
+    <tr><td><b>${esc(e.name)}</b></td><td class="mono trunc" title="${esc(e.url)}">${esc(e.url)}</td>
+    <td class="mono">${esc(e.event_types.join(', ') || '*')}</td>
+    <td>${e.enabled ? '<span class="pill ok">enabled</span>' : `<span class="pill bad" title="${esc(e.disabled_reason)}">disabled</span>`}
+      ${e.pending ? `<span class="pill warn">${e.pending} pending</span>` : ''} ${e.dead ? `<span class="pill bad">${e.dead} dead</span>` : ''}</td></tr>`).join('')}</table>`
+    : '<div class="empty">No endpoints yet. Add one to start sending.</div>';
+  $('events').innerHTML = s.events.length ? `<table><tr><th>Time</th><th>Source</th><th>Type</th><th>Delivery id</th><th>Body</th></tr>${s.events.map((e) => `
+    <tr><td class="mono">${time(e.at)}</td><td style="white-space:nowrap"><b>${esc(e.source)}</b></td><td class="mono">${esc(e.event_type)}</td>
+    <td class="mono trunc" style="max-width:150px" title="${esc(e.msg_id)}">${esc(e.msg_id)}</td><td class="mono trunc" title="${esc(e.summary)}">${esc(e.summary)}</td></tr>`).join('')}</table>`
+    : '<div class="empty">Nothing received yet.</div>';
+  $('log').innerHTML = s.log.length ? `<table><tr><th>Time</th><th></th><th>Peer</th><th>Type</th><th>Outcome</th><th>Detail</th></tr>${s.log.map((l) => `
+    <tr><td class="mono">${time(l.at)}</td><td>${l.direction === 'in' ? '↓' : '↑'}</td><td>${esc(l.peer)}</td><td class="mono">${esc(l.event_type)}</td>
+    <td style="white-space:nowrap"><span class="pill ${OUTCOME[l.outcome] || ''}">${esc(l.outcome)}</span>${l.status ? ` <span class="muted mono">${l.status}</span>` : ''}</td>
+    <td class="trunc" title="${esc(l.detail)}">${esc(l.detail)}${l.latency_us ? ` <span class="muted">${(l.latency_us / 1000).toFixed(1)} ms</span>` : ''}</td></tr>`).join('')}</table>`
+    : '<div class="empty">No activity yet.</div>';
+}
+
+$('send-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  let data;
+  try { data = JSON.parse(f.get('data') || 'null'); } catch { return toast('Data must be JSON'); }
+  const r = await (await fetch(base + '/demo/send', { method: 'POST', body: JSON.stringify({ event_type: f.get('event_type'), data, fail: !!f.get('fail') }) })).json();
+  toast(r.error ? `Rolled back: ${r.error}` : `Queued for ${r.queued.length} endpoint(s)`);
+  refresh();
+};
+$('show-add').onclick = () => { $('add-form').hidden = !$('add-form').hidden; };
+$('add-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const event_types = String(f.get('event_types') || '').split(',').map((x) => x.trim()).filter(Boolean);
+  const r = await (await fetch(base + '/demo/endpoint', { method: 'POST', body: JSON.stringify({ name: f.get('name'), url: f.get('url'), secret: f.get('secret'), event_types }) })).json();
+  toast(r.error ? r.error : 'Endpoint saved');
+  if (!r.error) { e.target.reset(); $('add-form').hidden = true; }
+  refresh();
+};
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

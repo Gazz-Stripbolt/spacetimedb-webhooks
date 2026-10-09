@@ -1,0 +1,15 @@
+{
+  "name": "spacetimedb-webhooks-repo",
+  "private": true,
+  "type": "module",
+  "workspaces": ["typescript", "demo/typescript"],
+  "scripts": {
+    "gen:page": "node demo/dashboard/gen.mjs",
+    "test": "tsx tests/e2e.test.mts",
+    "typecheck": "tsc --noEmit -p typescript && tsc --noEmit -p demo/typescript"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
