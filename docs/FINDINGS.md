@@ -20,7 +20,7 @@ database: 500 signed Standard Webhooks in, 16 at a time; then 500 events out to 
 - **A slow receiver doesn't stall the database.** With a receiver that took 3 s to answer, other routes and
   writes still took 5-30 ms while the delivery was in flight.
 
-## Bug: the TypeScript SDK splits outbound header values on commas
+## Bug: the TypeScript SDK splits outbound header values on commas (reported: [#6123](https://github.com/clockworklabs/SpacetimeDB/issues/6123))
 
 `ctx.http.fetch()` serializes headers with `headers-polyfill`'s `headersToList()`, which turns any value containing a
 comma into **separate header lines**. The host then sends:
@@ -40,7 +40,7 @@ It reads the status code from the last two bytes of the response metadata, becau
 deserializer doesn't accept a `BinaryReader` from the main `spacetimedb` entry point ("Receiver must be an instance
 of class"). The upstream fix is to stop splitting values in `serializeHeaders` (`http_shared.ts`).
 
-A related quirk: the SDK's `fetch` throws on status codes the `statuses` package doesn't know (530 and similar).
+A related quirk: the SDK's `fetch` throws on status codes the `statuses` package doesn't know (530 and similar), reported as [#6126](https://github.com/clockworklabs/SpacetimeDB/issues/6126).
 The raw path doesn't care.
 
 ## Things worth knowing
