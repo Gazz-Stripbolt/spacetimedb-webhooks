@@ -61,6 +61,7 @@ jobs:
       - run: npm ci   # also builds every workspace package (prepare)
       - name: Test
         run: |
+          npm run gen:page    # the demo imports a generated page module
           npm run typecheck
       - name: Package contents
         working-directory: ${{ steps.pkg.outputs.dir }}
