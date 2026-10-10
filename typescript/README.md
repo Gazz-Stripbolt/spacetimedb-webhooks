@@ -21,7 +21,7 @@ To work on it from a clone instead, add this folder to your npm workspaces next 
 // package.json at your repo root
 { "private": true, "workspaces": ["spacetimedb-webhooks/typescript", "my-module"] }
 // my-module/package.json
-{ "dependencies": { "spacetimedb": "2.11.*", "@pogly/spacetimedb-webhooks": "0.1.0" } }
+{ "dependencies": { "spacetimedb": "2.11.*", "@pogly/spacetimedb-webhooks": "*" } }
 ```
 
 ## Wire it up
