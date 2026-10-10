@@ -4,7 +4,7 @@
  * dashboard at /route/.
  */
 import { schema, table, t, Router, SyncResponse, type ReducerCtx } from 'spacetimedb/server';
-import * as webhooks from 'spacetimedb-webhooks';
+import * as webhooks from '@pogly/spacetimedb-webhooks';
 import PAGE from './page.gen';
 
 /** The inbound routes. `spare` has no configuration, to show what that returns. */

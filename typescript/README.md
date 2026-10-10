@@ -7,9 +7,22 @@ Protocol: [`docs/PROTOCOL.md`](../docs/PROTOCOL.md)
 
 ## Install
 
-It isn't on npm yet. Copy this folder into your repo and add it as an npm workspace package, so there's a single
-copy of `spacetimedb` (with two copies, `spacetime publish` fails with *"Local module schema inspection failed"*).
-It depends on `@noble/hashes` and `@noble/curves`.
+```bash
+npm install @pogly/spacetimedb-webhooks spacetimedb
+```
+
+Use `spacetimedb` 2.11.x, and keep only one copy of it in your module's dependency tree. With two copies,
+`spacetime publish` fails with *"Local module schema inspection failed"*. The package ships compiled JavaScript plus
+its TypeScript source, which is where the types come from. It depends on `@noble/hashes` and `@noble/curves`.
+
+To work on it from a clone instead, add this folder to your npm workspaces next to your module:
+
+```jsonc
+// package.json at your repo root
+{ "private": true, "workspaces": ["spacetimedb-webhooks/typescript", "my-module"] }
+// my-module/package.json
+{ "dependencies": { "spacetimedb": "2.11.*", "@pogly/spacetimedb-webhooks": "0.1.0" } }
+```
 
 ## Wire it up
 
@@ -17,7 +30,7 @@ Submodules can't read env vars or own routes, so your module adds a few lines:
 
 ```typescript
 import { schema, t, Router, type ReducerCtx } from 'spacetimedb/server';
-import * as webhooks from 'spacetimedb-webhooks';          // `import * as`, not a default import
+import * as webhooks from '@pogly/spacetimedb-webhooks';          // `import * as`, not a default import
 
 const spacetimedb = schema(
   { /* your tables */, webhooks },

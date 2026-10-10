@@ -1,20 +1,60 @@
 {
-  "name": "spacetimedb-webhooks",
+  "name": "@pogly/spacetimedb-webhooks",
   "version": "0.1.0",
   "description": "Verified inbound and signed outbound webhooks for SpacetimeDB, as a submodule: GitHub, Twitch EventSub, Stripe, Discord, Standard Webhooks, generic HMAC; transactional outbox with retries. Same behaviour as webhooks.rs / Webhooks.cs.",
   "license": "MIT",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "exports": { ".": "./src/index.ts" },
-  "files": ["src"],
-  "keywords": ["spacetimedb", "submodule", "webhooks", "standard-webhooks", "twitch-eventsub", "stripe", "discord"],
-  "repository": { "type": "git", "url": "https://github.com/Gazz-Stripbolt/spacetimedb-webhooks", "directory": "typescript" },
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "spacetimedb",
+    "submodule",
+    "webhooks",
+    "standard-webhooks",
+    "twitch-eventsub",
+    "stripe",
+    "discord"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gazz-Stripbolt/spacetimedb-webhooks.git",
+    "directory": "typescript"
+  },
+  "homepage": "https://github.com/Gazz-Stripbolt/spacetimedb-webhooks/tree/main/typescript#readme",
+  "bugs": {
+    "url": "https://github.com/Gazz-Stripbolt/spacetimedb-webhooks/issues"
+  },
   "dependencies": {
     "@noble/curves": "^1.9.0",
     "@noble/hashes": "^1.8.0"
   },
   "peerDependencies": {
     "spacetimedb": "2.11.*"
+  },
+  "devDependencies": {
+    "spacetimedb": "2.11.*",
+    "typescript": "^5.9.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

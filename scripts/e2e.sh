@@ -13,6 +13,7 @@ HTTP=${HTTP:-http://127.0.0.1:3000}
 DB=${DB:-wh-$LANG_}
 
 cd "$ROOT"
+npm run build -w typescript --silent >/dev/null   # the demos import the packages' compiled dist/
 [[ $LANG_ != typescript || -f demo/typescript/src/page.gen.ts ]] || node demo/dashboard/gen.mjs
 echo "== publish demo/$LANG_ as $DB"
 WEBHOOK_SOURCES=$(node tests/fixtures.mjs sources) WEBHOOK_RETRY_SECS=0.3,0.6,1 \
