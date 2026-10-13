@@ -4,7 +4,7 @@ One file. Copy [`webhooks.rs`](webhooks.rs) to your module's `src/webhooks.rs`.
 
 ```toml
 # Cargo.toml (HTTP handlers need `unstable`)
-spacetimedb = { version = "2.11.*", features = ["unstable"] }
+spacetimedb = { version = "2.12.*", features = ["unstable"] }
 http = "1"
 serde_json = "1"
 sha2 = "0.10"
