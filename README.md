@@ -11,7 +11,7 @@ outbox with retries, backoff and dead letters. Available for **Rust**, **C#** an
 with the same routes, headers and behaviour in all three.
 
 [![CI](https://github.com/Gazz-Stripbolt/spacetimedb-webhooks/actions/workflows/ci.yml/badge.svg)](https://github.com/Gazz-Stripbolt/spacetimedb-webhooks/actions/workflows/ci.yml)
-![SpacetimeDB 2.11](https://img.shields.io/badge/SpacetimeDB-2.11-e8730c)
+![SpacetimeDB 2.12](https://img.shields.io/badge/SpacetimeDB-2.12-e8730c)
 ![TypeScript submodule](https://img.shields.io/badge/TypeScript-submodule-3178c6)
 [![npm](https://img.shields.io/npm/v/@pogly/spacetimedb-webhooks?label=npm%20%40pogly%2Fspacetimedb-webhooks&color=cb3837)](https://www.npmjs.com/package/@pogly/spacetimedb-webhooks)
 ![Rust](https://img.shields.io/badge/Rust-drop--in-b7410e)
@@ -101,7 +101,7 @@ webhooks::send(ctx, "order.paid", json!({ "order": 42 }));
 ## Quick start (Rust)
 
 ```rust
-// Cargo.toml: spacetimedb = { version = "2.11.*", features = ["unstable"] }, plus serde_json, http, hmac,
+// Cargo.toml: spacetimedb = { version = "2.12.*", features = ["unstable"] }, plus serde_json, http, hmac,
 // sha2, base64 and ed25519-dalek (see demo/rust/Cargo.toml)
 pub mod webhooks;   // copy rust/webhooks.rs to src/webhooks.rs
 
