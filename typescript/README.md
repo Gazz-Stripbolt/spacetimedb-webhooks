@@ -1,6 +1,6 @@
 # spacetimedb-webhooks for TypeScript (submodule)
 
-Verified inbound and signed outbound webhooks as a **SpacetimeDB submodule**.
+Verified inbound and signed outbound webhooks as a **Spacetime submodule**.
 
 Source: [`src/index.ts`](src/index.ts) · Complete example: [`demo/typescript`](../demo/typescript/src/index.ts) ·
 Protocol: [`docs/PROTOCOL.md`](../docs/PROTOCOL.md)

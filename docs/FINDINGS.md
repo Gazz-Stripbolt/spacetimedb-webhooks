@@ -1,6 +1,6 @@
 # Findings
 
-What we learned building webhooks on SpacetimeDB 2.11.
+What we learned building webhooks on Spacetime 2.11.
 
 ## Numbers
 

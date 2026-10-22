@@ -2,7 +2,7 @@
 
 # 🔧 Spacetime Webhooks
 
-**Verified inbound and signed outbound webhooks for SpacetimeDB.**
+**Verified inbound and signed outbound webhooks for Spacetime.**
 
 Receive webhooks from GitHub, Twitch EventSub, Stripe, Discord, any Standard Webhooks sender or a generic HMAC
 signer, with signature checks, replay windows and exactly-once handling in the same transaction as your change.
@@ -11,7 +11,7 @@ outbox with retries, backoff and dead letters. Available for **Rust**, **C#** an
 with the same routes, headers and behaviour in all three.
 
 [![CI](https://github.com/Gazz-Stripbolt/spacetimedb-webhooks/actions/workflows/ci.yml/badge.svg)](https://github.com/Gazz-Stripbolt/spacetimedb-webhooks/actions/workflows/ci.yml)
-![SpacetimeDB 2.12](https://img.shields.io/badge/SpacetimeDB-2.12-e8730c)
+![Spacetime 2.12](https://img.shields.io/badge/Spacetime-2.12-e8730c)
 ![TypeScript submodule](https://img.shields.io/badge/TypeScript-submodule-3178c6)
 [![npm](https://img.shields.io/npm/v/@pogly/spacetimedb-webhooks?label=npm%20%40pogly%2Fspacetimedb-webhooks&color=cb3837)](https://www.npmjs.com/package/@pogly/spacetimedb-webhooks)
 ![Rust](https://img.shields.io/badge/Rust-drop--in-b7410e)
@@ -36,7 +36,7 @@ with the same routes, headers and behaviour in all three.
 | **TypeScript**: add webhooks to a TS module, as a **submodule** | [`typescript/`](typescript): `npm install @pogly/spacetimedb-webhooks` ([npm](https://www.npmjs.com/package/@pogly/spacetimedb-webhooks)) |
 | **See it working**: a module receiving from six kinds of sender and sending its own | [`demo/`](demo): the same demo in each language, with a live dashboard |
 | **Every header, signature and status code** | [`docs/PROTOCOL.md`](docs/PROTOCOL.md) |
-| **What we learned**: numbers, limits, SpacetimeDB quirks | [`docs/FINDINGS.md`](docs/FINDINGS.md) |
+| **What we learned**: numbers, limits, Spacetime quirks | [`docs/FINDINGS.md`](docs/FINDINGS.md) |
 
 CI runs the same 19-test end-to-end suite (real signed requests, a real receiver) against every language:
 
@@ -123,7 +123,7 @@ C# and TypeScript look the same; see [`csharp/`](csharp) and [`typescript/`](typ
 
 - **Secrets live in env vars** (`WEBHOOK_SOURCES`) for inbound, and in a private table for outbound endpoints.
   Generate outbound secrets outside the module: module RNGs are seeded from the timestamp.
-- **HTTP handlers are beta** in SpacetimeDB 2.11 (Rust needs the `unstable` feature). Route paths must be
+- **HTTP handlers are beta** in Spacetime 2.11 (Rust needs the `unstable` feature). Route paths must be
   lowercase without dots, so source names follow the same rule.
 - **Locally**, standalone refuses module HTTP to loopback and private addresses. That's fine for real endpoints;
   the tests use a build that allows it ([`scripts/dev-server.sh`](scripts/dev-server.sh)).
@@ -147,12 +147,12 @@ docs/                   PROTOCOL.md · FINDINGS.md · screenshots
 ## Credits
 
 Built by **Tinker** ([@Gazz-Stripbolt](https://github.com/Gazz-Stripbolt)), the resident gadgeteer for the
-[Pogly](https://pogly.gg) team: collaborative stream overlays, powered by SpacetimeDB. Twitch EventSub straight
+[Pogly](https://pogly.gg) team: collaborative stream overlays, powered by Spacetime. Twitch EventSub straight
 into a module is exactly what Pogly needs.
 
-More SpacetimeDB building blocks from this workshop: **[github.com/Gazz-Stripbolt](https://github.com/Gazz-Stripbolt)**.
+More Spacetime building blocks from this workshop: **[github.com/Gazz-Stripbolt](https://github.com/Gazz-Stripbolt)**.
 
-🚀 **New to SpacetimeDB?** If you sign up through **[this referral link](https://spacetimedb.com/?referral=Lethalchip)**,
+🚀 **New to Spacetime?** If you sign up through **[this referral link](https://spacetimedb.com/?referral=Lethalchip)**,
 Pogly gets free recurring energy. Thank you!
 
 ## License
