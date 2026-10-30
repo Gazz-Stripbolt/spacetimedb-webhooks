@@ -11,7 +11,7 @@ outbox with retries, backoff and dead letters. Available for **Rust**, **C#** an
 with the same routes, headers and behaviour in all three.
 
 [![CI](https://github.com/Gazz-Stripbolt/spacetimedb-webhooks/actions/workflows/ci.yml/badge.svg)](https://github.com/Gazz-Stripbolt/spacetimedb-webhooks/actions/workflows/ci.yml)
-![Spacetime 2.12](https://img.shields.io/badge/Spacetime-2.12-e8730c)
+![Spacetime 2.14](https://img.shields.io/badge/Spacetime-2.14-e8730c)
 ![TypeScript submodule](https://img.shields.io/badge/TypeScript-submodule-3178c6)
 [![npm](https://img.shields.io/npm/v/@pogly/spacetimedb-webhooks?label=npm%20%40pogly%2Fspacetimedb-webhooks&color=cb3837)](https://www.npmjs.com/package/@pogly/spacetimedb-webhooks)
 ![Rust](https://img.shields.io/badge/Rust-drop--in-b7410e)
@@ -101,7 +101,7 @@ webhooks::send(ctx, "order.paid", json!({ "order": 42 }));
 ## Quick start (Rust)
 
 ```rust
-// Cargo.toml: spacetimedb = { version = "2.12.*", features = ["unstable"] }, plus serde_json, http, hmac,
+// Cargo.toml: spacetimedb = { version = "2.14.*", features = ["unstable"] }, plus serde_json, http, hmac,
 // sha2, base64 and ed25519-dalek (see demo/rust/Cargo.toml)
 pub mod webhooks;   // copy rust/webhooks.rs to src/webhooks.rs
 
@@ -121,14 +121,14 @@ C# and TypeScript look the same; see [`csharp/`](csharp) and [`typescript/`](typ
 
 ## Good to know
 
+- **Needs a 2.14 host.** Modules built with the 2.14 libraries export a changed HTTP handler ABI, and older hosts reject
+  them ([release notes](https://github.com/clockworklabs/SpacetimeDB/releases/tag/v2.14.0)).
 - **Secrets live in env vars** (`WEBHOOK_SOURCES`) for inbound, and in a private table for outbound endpoints.
   Generate outbound secrets outside the module: module RNGs are seeded from the timestamp.
-- **HTTP handlers are beta** in Spacetime 2.11 (Rust needs the `unstable` feature). Route paths must be
+- **HTTP handlers are beta** in Spacetime 2.14 (Rust needs the `unstable` feature). Route paths must be
   lowercase without dots, so source names follow the same rule.
 - **Locally**, standalone refuses module HTTP to loopback and private addresses. That's fine for real endpoints;
   the tests use a build that allows it ([`scripts/dev-server.sh`](scripts/dev-server.sh)).
-- **The TypeScript submodule works around an SDK bug**: `ctx.http.fetch` splits header values on commas, which
-  breaks `webhook-signature: v1,…`. See [FINDINGS](docs/FINDINGS.md).
 - The demo's dashboard and `/demo/*` routes are open to anyone: they're for trying it out, not for production.
 
 ## Repository layout

@@ -16,9 +16,7 @@
  */
 import { schema, table, t, Router, SyncResponse } from 'spacetimedb/server';
 import type { ReducerCtx, Request } from 'spacetimedb/server';
-import { BinaryWriter, ScheduleAt, TimeDuration, Timestamp } from 'spacetimedb';
-// @ts-ignore: provided by the SpacetimeDB host at runtime (the SDK uses it too); no published types.
-import * as sys from 'spacetime:sys@2.0';
+import { ScheduleAt, TimeDuration, Timestamp } from 'spacetimedb';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha2';
 import { ed25519 } from '@noble/curves/ed25519';
@@ -631,38 +629,6 @@ function kill(ctx: WebhooksCtx, row: OutboxRow, endpointName: string, why: strin
   ctx.db.outbox.id.update({ ...row, dead: true, inFlightUntil: undefined, lastError: why });
 }
 
-// ctx.http.fetch() can't send a Standard Webhooks signature: the SDK serializes headers through
-// headers-polyfill's headersToList(), which splits every value on "," into separate header lines,
-// so `webhook-signature: v1,<sig>` arrives as `v1, <sig>`. Until that's fixed upstream, POST through
-// the same host call the SDK uses, with headers we serialize ourselves.
-const HttpHeaderPair = t.object('HttpHeaderPair', { name: t.string(), value: t.byteArray() });
-const HttpRequestType = t.object('HttpRequest', {
-  method: t.enum('HttpMethod', {
-    Get: t.unit(), Head: t.unit(), Post: t.unit(), Put: t.unit(), Delete: t.unit(), Connect: t.unit(),
-    Options: t.unit(), Trace: t.unit(), Patch: t.unit(), Extension: t.string(),
-  }),
-  headers: t.object('HttpHeaders', { entries: t.array(HttpHeaderPair) }),
-  timeout: t.option(t.timeDuration()),
-  uri: t.string(),
-  version: t.enum('HttpVersion', { Http09: t.unit(), Http10: t.unit(), Http11: t.unit(), Http2: t.unit(), Http3: t.unit() }),
-});
-
-function rawPost(url: string, headers: [string, string][], body: string): { status: number; text: string } {
-  const w = new BinaryWriter(256);
-  (HttpRequestType as any).serialize(w, {
-    method: { tag: 'Post' },
-    headers: { entries: headers.map(([name, value]) => ({ name, value: enc.encode(value) })) },
-    timeout: HTTP_TIMEOUT,
-    uri: url,
-    version: { tag: 'Http11' },
-  });
-  const [resBuf, resBody] = (sys as any).procedure_http_request(w.getBuffer(), body);
-  // HttpResponse is { headers, version, code: u16 }: the status is the last two bytes (little-endian).
-  const buf = resBuf as Uint8Array;
-  const status = new DataView(buf.buffer, buf.byteOffset, buf.byteLength).getUint16(buf.byteLength - 2, true);
-  return { status, text: dec.decode(resBody) };
-}
-
 /** Scheduled procedure: deliver everything that's due, then reschedule for the next retry. */
 export const flush = spacetimedb.procedure({ onSchedule: flushJob }, { arg: flushJob.rowType }, t.unit(), (ctx) => {
   for (let i = 0; i < 500; i++) {
@@ -674,19 +640,20 @@ export const flush = spacetimedb.procedure({ onSchedule: flushJob }, { arg: flus
     let status = 0;
     let error: string | undefined;
     try {
-      const res = rawPost(
-        claim.endpoint.url,
-        [
+      const res = ctx.http.fetch(claim.endpoint.url, {
+        method: 'POST',
+        headers: [
           ['content-type', 'application/json'],
           ['user-agent', 'spacetimedb-webhooks/0.1'],
           ['webhook-id', claim.row.msgId],
           ['webhook-timestamp', String(tsSecs)],
           ['webhook-signature', signStandard(claim.endpoint.secret, claim.row.msgId, tsSecs, body)],
         ],
-        claim.row.body
-      );
+        body: claim.row.body,
+        timeout: HTTP_TIMEOUT,
+      });
       status = res.status;
-      if (status < 200 || status >= 300) error = `${status} ${res.text.slice(0, 200)}`;
+      if (status < 200 || status >= 300) error = `${status} ${res.text().slice(0, 200)}`;
     } catch (e) {
       error = `transport error: ${String((e as Error)?.message ?? e)}`;
     }
