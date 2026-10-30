@@ -54,7 +54,15 @@ public static partial class Module
         public string? WEBHOOK_RETRY_SECS;
     }
 
-    static ModuleEnvironment WebhookEnv => default;
+    // ModuleEnvironment isn't generated on .NET 10, where only ctx.Env has these fields, and this
+    // code often has no ctx. DatabaseEnvironment.Get works on every target.
+    readonly struct WebhookEnvValues
+    {
+        public string? WEBHOOK_SOURCES => default(DatabaseEnvironment).Get("WEBHOOK_SOURCES");
+        public string? WEBHOOK_RETRY_SECS => default(DatabaseEnvironment).Get("WEBHOOK_RETRY_SECS");
+    }
+
+    static WebhookEnvValues WebhookEnv => default;
 
     static readonly double[] WebhookDefaultRetrySecs = { 5, 30, 120, 600, 1800, 3600, 7200, 14400 };
     static readonly TimeSpan WebhookHttpTimeout = TimeSpan.FromSeconds(15);
