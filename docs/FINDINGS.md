@@ -22,6 +22,8 @@ database: 500 signed Standard Webhooks in, 16 at a time; then 500 events out to 
 
 ## Bug: the TypeScript SDK splits outbound header values on commas (reported: [#6123](https://github.com/clockworklabs/SpacetimeDB/issues/6123))
 
+**Fixed in 2.13 ([#6140](https://github.com/clockworklabs/SpacetimeDB/pull/6140)).** The submodule now uses `ctx.http.fetch()`, and `rawPost` is gone. What follows is the history.
+
 `ctx.http.fetch()` serializes headers with `headers-polyfill`'s `headersToList()`, which turns any value containing a
 comma into **separate header lines**. The host then sends:
 
