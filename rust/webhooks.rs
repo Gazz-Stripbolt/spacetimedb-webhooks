@@ -927,6 +927,7 @@ fn enqueue(ctx: &ReducerContext, ep: &WebhookEndpoint, event_type: &str, data: &
         ctx, "out", &ep.name, event_type, &msg_id, "queued", 0, "", 0,
     );
     schedule_flush(ctx, ctx.timestamp);
+    schedule_backstop(ctx);
     msg_id
 }
 
@@ -956,6 +957,7 @@ pub fn redeliver_dead(ctx: &ReducerContext, endpoint: &str) -> Result<usize, Str
         });
     }
     schedule_flush(ctx, ctx.timestamp);
+    schedule_backstop(ctx);
     Ok(n)
 }
 
@@ -973,6 +975,41 @@ fn schedule_flush(ctx: &ReducerContext, at: Timestamp) {
     }
 }
 
+/// When the outbox next needs a flush, if it has anything queued.
+fn next_due(ctx: &ReducerContext) -> Option<Timestamp> {
+    ctx.db
+        .webhook_outbox()
+        .dead()
+        .filter(false)
+        .map(|r| {
+            r.in_flight_until
+                .map_or(r.next_attempt, |t| t.max(r.next_attempt))
+        })
+        .min()
+}
+
+/// Keep a later flush on the books while anything is queued. A flush job is deleted before the
+/// flush runs, so a crash part-way through would leave leased messages with nothing to pick them
+/// up. This runs in the same transaction as the lease, so one can't be lost without the other.
+/// It waits for the next due message rather than the lease alone, so a message in a long backoff
+/// costs one job, not a flush every minute.
+fn schedule_backstop(ctx: &ReducerContext) {
+    let Some(next) = next_due(ctx) else { return };
+    let soonest = ctx.timestamp + LEASE / 2;
+    let at = next.max(ctx.timestamp + LEASE);
+    let covered = ctx
+        .db
+        .webhook_flush_job()
+        .iter()
+        .any(|j| matches!(j.scheduled_at, ScheduleAt::Time(t) if t >= soonest && t <= at));
+    if !covered {
+        ctx.db.webhook_flush_job().insert(WebhookFlushJob {
+            scheduled_id: 0,
+            scheduled_at: ScheduleAt::Time(at),
+        });
+    }
+}
+
 struct Claim {
     row: WebhookOutbox,
     endpoint: WebhookEndpoint,
@@ -980,6 +1017,7 @@ struct Claim {
 
 /// Lease the oldest due message, or None.
 fn claim_next(ctx: &ReducerContext) -> Option<Claim> {
+    schedule_backstop(ctx);
     let now = ctx.timestamp;
     let mut due: Vec<WebhookOutbox> = ctx
         .db
@@ -1088,17 +1126,7 @@ pub fn webhook_flush(ctx: &mut ProcedureContext, _job: WebhookFlushJob) {
         ctx.with_tx(|tx| finish(tx, &claim, &outcome, sent_at));
     }
     ctx.with_tx(|tx| {
-        let next = tx
-            .db
-            .webhook_outbox()
-            .dead()
-            .filter(false)
-            .map(|r| {
-                r.in_flight_until
-                    .map_or(r.next_attempt, |t| t.max(r.next_attempt))
-            })
-            .min();
-        if let Some(at) = next {
+        if let Some(at) = next_due(tx) {
             schedule_flush(tx, at.max(tx.timestamp));
         }
     });

@@ -578,6 +578,7 @@ function enqueue(ctx: WebhooksCtx, ep: EndpointRow, eventType: string, data: unk
   ctx.db.outbox.id.update({ ...row, msgId });
   logRow(ctx, { direction: 'out', peer: ep.name, eventType, msgId, outcome: 'queued' });
   scheduleFlush(ctx, ctx.timestamp.microsSinceUnixEpoch);
+  scheduleBackstop(ctx);
   return msgId;
 }
 
@@ -588,6 +589,7 @@ export function redeliverDead(ctx: WebhooksCtx, endpointName: string): number {
   const dead = [...ctx.db.outbox.endpointId.filter(ep.id)].filter((r) => r.dead);
   for (const r of dead) ctx.db.outbox.id.update({ ...r, dead: false, attempts: 0, nextAttempt: ctx.timestamp, inFlightUntil: undefined });
   scheduleFlush(ctx, ctx.timestamp.microsSinceUnixEpoch);
+  scheduleBackstop(ctx);
   return dead.length;
 }
 
@@ -596,6 +598,37 @@ function scheduleFlush(ctx: WebhooksCtx, atUs: bigint): void {
     if (j.scheduledAt.tag === 'Time' && j.scheduledAt.value.microsSinceUnixEpoch <= atUs) return;
   }
   ctx.db.flushJob.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(atUs) });
+}
+
+/** When the outbox next needs a flush, if it has anything queued. */
+function nextDue(ctx: WebhooksCtx): bigint | undefined {
+  let next: bigint | undefined;
+  for (const r of ctx.db.outbox.dead.filter(false)) {
+    let at = r.nextAttempt.microsSinceUnixEpoch;
+    if (r.inFlightUntil && r.inFlightUntil.microsSinceUnixEpoch > at) at = r.inFlightUntil.microsSinceUnixEpoch;
+    if (next === undefined || at < next) next = at;
+  }
+  return next;
+}
+
+/**
+ * Keep a later flush on the books while anything is queued. A flush job is deleted before the flush
+ * runs, so a crash part-way through would leave leased messages with nothing to pick them up. This
+ * runs in the same transaction as the lease, so one can't be lost without the other. It waits for the
+ * next due message rather than the lease alone, so a message in a long backoff costs one job, not a
+ * flush every minute.
+ */
+function scheduleBackstop(ctx: WebhooksCtx): void {
+  const next = nextDue(ctx);
+  if (next === undefined) return;
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  const at = next > now + LEASE_US ? next : now + LEASE_US;
+  for (const j of ctx.db.flushJob.iter()) {
+    if (j.scheduledAt.tag !== 'Time') continue;
+    const t = j.scheduledAt.value.microsSinceUnixEpoch;
+    if (t >= now + LEASE_US / 2n && t <= at) return;
+  }
+  ctx.db.flushJob.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(at) });
 }
 
 /** Standard Webhooks: `v1,<base64 HMAC-SHA256(key, "<id>.<ts>.<body>")>`. */
@@ -609,6 +642,7 @@ interface Claim {
 }
 
 function claimNext(ctx: WebhooksCtx): Claim | undefined {
+  scheduleBackstop(ctx);
   const now = ctx.timestamp.microsSinceUnixEpoch;
   const due = [...ctx.db.outbox.dead.filter(false)]
     .filter((r) => r.nextAttempt.microsSinceUnixEpoch <= now && !(r.inFlightUntil && r.inFlightUntil.microsSinceUnixEpoch > now))
@@ -660,12 +694,7 @@ export const flush = spacetimedb.procedure({ onSchedule: flushJob }, { arg: flus
     ctx.withTx((tx) => finish(tx, claim, status, error, now));
   }
   ctx.withTx((tx) => {
-    let next: bigint | undefined;
-    for (const r of tx.db.outbox.dead.filter(false)) {
-      let at = r.nextAttempt.microsSinceUnixEpoch;
-      if (r.inFlightUntil && r.inFlightUntil.microsSinceUnixEpoch > at) at = r.inFlightUntil.microsSinceUnixEpoch;
-      if (next === undefined || at < next) next = at;
-    }
+    const next = nextDue(tx);
     if (next !== undefined) {
       const now = tx.timestamp.microsSinceUnixEpoch;
       scheduleFlush(tx, next > now ? next : now);

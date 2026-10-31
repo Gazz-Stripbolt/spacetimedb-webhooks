@@ -45,6 +45,17 @@ of class"). The upstream fix is to stop splitting values in `serializeHeaders` (
 A related quirk: the SDK's `fetch` throws on status codes the `statuses` package doesn't know (530 and similar), reported as [#6126](https://github.com/clockworklabs/SpacetimeDB/issues/6126).
 The raw path doesn't care.
 
+## A crash can take the flush with it
+
+A one-shot flush job is deleted before the flush runs. If the server dies while a delivery is in flight, the message
+stays leased with no flush scheduled, so it waits for the next event. [`scripts/crash.sh`](../scripts/crash.sh) kills
+the server at that moment: before this fix the message was still pending 100 s after the restart, in all three
+languages.
+
+So the flush's first transaction, `send` and `redeliver` now add a backstop job, committed with the lease. It runs at
+the end of the lease or when the next message is due, whichever is later, so a message in a four-hour backoff costs one
+job, not a flush every minute. An empty outbox schedules nothing.
+
 ## Things worth knowing
 
 - **Routes are static.** There are no path parameters or wildcards, and paths must be lowercase without dots.
