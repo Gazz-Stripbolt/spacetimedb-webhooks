@@ -616,6 +616,7 @@ public static partial class Module
         tx.Db.WebhookOutbox.Id.Update(row with { MsgId = msgId });
         WebhookWriteLog(tx, "out", ep.Name, eventType, msgId, "queued", 0, "");
         WebhookScheduleFlush(tx, tx.Timestamp);
+        WebhookScheduleBackstop(tx);
         return msgId;
     }
 
@@ -627,6 +628,7 @@ public static partial class Module
         foreach (var row in dead)
             tx.Db.WebhookOutbox.Id.Update(row with { Dead = false, Attempts = 0, NextAttempt = tx.Timestamp, InFlightUntil = null });
         WebhookScheduleFlush(tx, tx.Timestamp);
+        WebhookScheduleBackstop(tx);
         return dead.Count;
     }
 
@@ -637,10 +639,41 @@ public static partial class Module
         tx.Db.WebhookFlushJob.Insert(new WebhookFlushJob { ScheduledAt = new ScheduleAt.Time(at) });
     }
 
+    /// <summary>When the outbox next needs a flush, if it has anything queued.</summary>
+    static long? WebhookNextDue(WebhookTx tx)
+    {
+        long? next = null;
+        foreach (var r in tx.Db.WebhookOutbox.Dead.Filter(false))
+        {
+            var at = r.NextAttempt.MicrosecondsSinceUnixEpoch;
+            if (r.InFlightUntil is { } t && t.MicrosecondsSinceUnixEpoch > at) at = t.MicrosecondsSinceUnixEpoch;
+            if (next is null || at < next) next = at;
+        }
+        return next;
+    }
+
+    /// <summary>
+    /// Keep a later flush on the books while anything is queued. A flush job is deleted before the
+    /// flush runs, so a crash part-way through would leave leased messages with nothing to pick them
+    /// up. This runs in the same transaction as the lease, so one can't be lost without the other.
+    /// It waits for the next due message rather than the lease alone, so a message in a long backoff
+    /// costs one job, not a flush every minute.
+    /// </summary>
+    static void WebhookScheduleBackstop(WebhookTx tx)
+    {
+        if (WebhookNextDue(tx) is not { } next) return;
+        var now = tx.Timestamp.MicrosecondsSinceUnixEpoch;
+        var at = Math.Max(next, now + WebhookLeaseUs);
+        foreach (var j in tx.Db.WebhookFlushJob.Iter())
+            if (j.ScheduledAt is ScheduleAt.Time(var t) && t.MicrosecondsSinceUnixEpoch >= now + WebhookLeaseUs / 2 && t.MicrosecondsSinceUnixEpoch <= at) return;
+        tx.Db.WebhookFlushJob.Insert(new WebhookFlushJob { ScheduledAt = new ScheduleAt.Time(new Timestamp(at)) });
+    }
+
     readonly record struct WebhookClaim(WebhookOutbox Row, WebhookEndpoint Endpoint);
 
     static WebhookClaim? WebhookClaimNext(WebhookTx tx)
     {
+        WebhookScheduleBackstop(tx);
         var now = tx.Timestamp.MicrosecondsSinceUnixEpoch;
         var due = tx.Db.WebhookOutbox.Dead.Filter(false)
             .Where(r => r.NextAttempt.MicrosecondsSinceUnixEpoch <= now
@@ -717,15 +750,9 @@ public static partial class Module
         }
         ctx.WithTx(tx =>
         {
-            long? next = null;
-            foreach (var r in tx.Db.WebhookOutbox.Dead.Filter(false))
-            {
-                var at = r.NextAttempt.MicrosecondsSinceUnixEpoch;
-                if (r.InFlightUntil is { } t && t.MicrosecondsSinceUnixEpoch > at) at = t.MicrosecondsSinceUnixEpoch;
-                if (next is null || at < next) next = at;
-            }
-            if (next is { } n)
-                WebhookScheduleFlush(new WebhookTx(tx.Db, tx.Timestamp), new Timestamp(Math.Max(n, tx.Timestamp.MicrosecondsSinceUnixEpoch)));
+            var wtx = new WebhookTx(tx.Db, tx.Timestamp);
+            if (WebhookNextDue(wtx) is { } n)
+                WebhookScheduleFlush(wtx, new Timestamp(Math.Max(n, tx.Timestamp.MicrosecondsSinceUnixEpoch)));
             return 0;
         });
     }
