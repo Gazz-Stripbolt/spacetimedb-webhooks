@@ -116,6 +116,8 @@ jobs:
         run: scripts/e2e.sh ${{ matrix.lang }}
       - name: Throughput
         run: scripts/bench.sh ${{ matrix.lang }} 500 16
+      - name: Crash test (kill -9 while a delivery is in flight)
+        run: scripts/crash.sh ${{ matrix.lang }}
       - name: Server log
         if: failure()
         run: tail -n 200 server.log || true
